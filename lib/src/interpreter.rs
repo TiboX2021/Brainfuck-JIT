@@ -6,7 +6,7 @@ use std::{
     path::Path,
 };
 
-use crate::lexer::tokenize_all;
+use crate::{instructions::Instruction, lexer::tokenize_all};
 
 /// An implementation of a Brainfuck interpreter
 pub struct Interpreter {
@@ -42,7 +42,28 @@ impl Interpreter {
             "This program contains {} brainfuck instructions",
             program.len()
         );
-        // TODO : parse the brackets
+
+        // Do a single forward pass over the whole code in order to match all loop brackets in the hash maps
+        let mut bracket_indices: Vec<usize> = Vec::new(); // Store the encountered forward brackets on a stack
+
+        for (index, instr) in program.into_iter().enumerate() {
+            match instr {
+                Instruction::JumpForward => bracket_indices.push(index),
+                Instruction::JumpBackwards => {
+                    let forward_index = bracket_indices.pop().expect("Unmatched closing bracket");
+                    self.forward_jumps.insert(forward_index, index);
+                    self.backward_jumps.insert(index, forward_index);
+                }
+                _ => {}
+            }
+        }
+
+        assert!(
+            bracket_indices.is_empty(),
+            "There exists unmatched opening brackets"
+        );
+
+        // TODO: Now execute the program
     }
 
     /// Execute brainfuck code from String slices
