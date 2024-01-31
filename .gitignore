@@ -1,2 +1,5 @@
 # Ignore targets
 target/
+
+# Ignore my notes
+TODO.md
