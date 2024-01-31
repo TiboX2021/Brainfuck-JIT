@@ -1,12 +1,8 @@
 //! Interpreter to run Brainfuck code.
 
-use std::{
-    collections::HashMap,
-    io::{self},
-    path::Path,
-};
+use std::collections::HashMap;
 
-use crate::{instructions::Instruction, lexer::tokenize_all};
+use crate::instructions::Instruction;
 
 /// An implementation of a Brainfuck interpreter
 pub struct Interpreter {
@@ -33,11 +29,8 @@ impl Interpreter {
         }
     }
 
-    /// Execute some brainfuck code from a byte iterator
-    pub fn execute<I: IntoIterator<Item = u8>>(&mut self, bytes: I) {
-        // Tokenize the program
-        let program = tokenize_all(bytes);
-
+    /// Execute some brainfuck code from a tokenized program
+    pub fn execute(&mut self, program: &[Instruction]) {
         // Do a single forward pass over the whole code in order to match all loop brackets in the hash maps
         let mut bracket_indices: Vec<usize> = Vec::new(); // Store the encountered forward brackets on a stack
 
@@ -87,21 +80,6 @@ impl Interpreter {
             // Go to the next instruction
             instruction_pointer += 1;
         }
-    }
-
-    /// Execute brainfuck code from String slices
-    pub fn execute_str(&mut self, s: &str) {
-        self.execute(s.bytes())
-    }
-
-    /// Execute brainfuck code from a file
-    /// In order to do this, we load and unwrap the whole file into a String.
-    /// This allow handling File io errors before starting the execution.
-    /// We assume that brainfuck programs are not large enough to mandate streaming support for files.
-    pub fn execute_file(&mut self, path: &Path) -> io::Result<()> {
-        let bytes = std::fs::read(path)?;
-        self.execute(bytes);
-        Ok(())
     }
 
     /// Clear the interpreter state from its previous execution

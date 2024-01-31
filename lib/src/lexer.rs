@@ -1,5 +1,5 @@
 //! Simple lexer utils that help convert a byte stream into a brainfuck Instruction stream.
-//!
+
 use crate::instructions::Instruction;
 
 /// Convert an iterator over bytes into an iterator over brainfuck Instructions

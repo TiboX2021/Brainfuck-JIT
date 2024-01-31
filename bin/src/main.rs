@@ -1,6 +1,6 @@
 use clap::Parser;
-use lib::interpreter::Interpreter;
-use std::{path::Path, time::Instant};
+use lib::{interpreter::Interpreter, lexer::tokenize_all};
+use std::time::Instant;
 
 #[derive(Parser, Debug)]
 #[command(author="Thibaut de Saivre", version, about="JIT for brainfuck", long_about = None)]
@@ -22,13 +22,19 @@ fn main() -> std::io::Result<()> {
     let args = Args::parse();
 
     let start_time = Instant::now();
-    let filepath = Path::new(&args.source);
 
-    // Execute the code in interpreter mode
+    // Read the entire source code into a byte array
+    let bytes = std::fs::read(&args.source)?;
+
+    // Tokenize the source code and remove invalid instructions
+    let source_code = tokenize_all(bytes);
+
     if args.interpret {
+        // Execute the code in interpreter mode
         let mut interp = Interpreter::new();
-        interp.execute_file(filepath)?;
+        interp.execute(&source_code);
     } else {
+        // Execute the code in JIT mode
         todo!("Implement brainfuck JIT");
     }
 
