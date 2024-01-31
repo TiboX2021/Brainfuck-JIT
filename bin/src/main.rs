@@ -1,9 +1,6 @@
 use clap::Parser;
-use lib::is_brainfuck_code;
-use std::{
-    fs::File,
-    io::{BufReader, Read},
-};
+use lib::interpreter::Interpreter;
+use std::{path::Path, time::Instant};
 
 #[derive(Parser, Debug)]
 #[command(author="Thibaut de Saivre", version, about="JIT for brainfuck", long_about = None)]
@@ -11,27 +8,41 @@ struct Args {
     /// Source file
     #[arg()]
     source: String,
+
+    /// Measure execution time
+    #[arg(short, long)]
+    time: bool,
+
+    /// Execute the program in interpreter mode, rather than JIT
+    #[arg(short, long)]
+    interpret: bool,
 }
 
 fn main() -> std::io::Result<()> {
     let args = Args::parse();
 
-    let file = File::open(args.source)?;
-    let reader = BufReader::new(file);
+    let start_time = Instant::now();
+    let filepath = Path::new(&args.source);
 
-    // Note that brainfuck chars fit into ASCII, thus reading the file as bytes is enough
-    // Iterate through each character
-    for byte_result in reader.bytes() {
-        // Unwrap the byte result
-        let byte = byte_result?;
+    // Execute the code in interpreter mode
+    if args.interpret {
+        let mut interp = Interpreter::new();
+        interp.execute_file(filepath)?;
+    } else {
+        todo!("Implement brainfuck JIT");
+    }
 
-        // Convert byte to char
-        let character = byte as char;
+    // Measure the elapsed time
+    let elapsed_time = start_time.elapsed();
 
-        if is_brainfuck_code(character) {
-            // DEBUG: print the character. We would typically process it there
-            println!("{}", character);
-        }
+    // Print elapsed time if the flag is set
+    if args.time {
+        // Print the elapsed time in seconds and milliseconds
+        println!(
+            "Elapsed time: {}.{:09} seconds",
+            elapsed_time.as_secs(),
+            elapsed_time.subsec_nanos()
+        );
     }
 
     Ok(())

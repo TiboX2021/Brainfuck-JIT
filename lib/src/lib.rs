@@ -1,7 +1,6 @@
-/// Returns true if the input char is one of the 8 valid brainfuck instructions
-pub fn is_brainfuck_code(c: char) -> bool {
-    matches!(c, '>' | '<' | '+' | '-' | '.' | ',' | '[' | ']')
-}
+pub mod instructions;
+pub mod interpreter;
+pub mod lexer;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right
