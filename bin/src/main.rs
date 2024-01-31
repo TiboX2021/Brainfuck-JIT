@@ -1,5 +1,5 @@
 use clap::Parser;
-use lib::{interpreter::Interpreter, lexer::tokenize_all};
+use lib::{compiler::Compiler, interpreter::Interpreter, lexer::tokenize_all};
 use std::time::Instant;
 
 #[derive(Parser, Debug)]
@@ -31,11 +31,13 @@ fn main() -> std::io::Result<()> {
 
     if args.interpret {
         // Execute the code in interpreter mode
-        let mut interp = Interpreter::new();
-        interp.execute(&source_code);
+        let mut interpreter = Interpreter::new();
+        interpreter.execute(&source_code);
     } else {
         // Execute the code in JIT mode
-        todo!("Implement brainfuck JIT");
+        let mut compiler = Compiler::new();
+        compiler.compile(&source_code);
+        compiler.execute();
     }
 
     // Measure the elapsed time

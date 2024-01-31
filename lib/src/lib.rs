@@ -1,3 +1,4 @@
+pub mod compiler;
 pub mod instructions;
 pub mod interpreter;
 pub mod lexer;
