@@ -1,7 +1,7 @@
 //! JIT compiler implementation
 
 use crate::instructions::Instruction;
-use memmap::{Mmap, MmapMut};
+use memmap2::{Mmap, MmapMut};
 
 pub struct Compiler {
     /// Buffer for the generated machine code
