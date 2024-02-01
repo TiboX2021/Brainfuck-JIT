@@ -1,5 +1,7 @@
 //! JIT compiler implementation
 
+use std::collections::HashMap;
+
 use crate::instructions::Instruction;
 use memmap2::{Mmap, MmapMut};
 
@@ -33,13 +35,30 @@ impl Compiler {
         self.machine_code
             .extend_from_slice(&(memory_adress as u64).to_le_bytes());
 
+        // Prepare [ to ] and ] to [ index hashmaps
+        let mut forward_jumps: HashMap<usize, usize> = HashMap::new();
+        let mut orphan_forwards: Vec<usize> = Vec::new();
+
         // Compile the actual instructions
-        for instruction in source {
+        for (index, instruction) in source.iter().enumerate() {
+            // Record the jump instruction indexes in the machine_code array before insertion
+            match instruction {
+                Instruction::JumpForward => orphan_forwards.push(index + 1), // It is actually the next byte that marks the jump address
+                Instruction::JumpBackwards => {
+                    let forward_index = orphan_forwards.pop().expect("Unmatched opening bracket");
+                    forward_jumps.insert(forward_index, index + 1);
+                }
+                _ => {}
+            }
+
             // Add each instruction's corresponding byte slice to the machine code
             self.machine_code.extend_from_slice(instruction.into());
-
-            // TODO: record the index position of every forward and backward jump. We will use them to swap the jump addresses in the final memory
         }
+
+        assert!(
+            orphan_forwards.is_empty(),
+            "There exists unmatched opening brackets"
+        );
 
         // Last: append the RET instruction
         self.machine_code.push(0xc3);
@@ -49,8 +68,18 @@ impl Compiler {
         let mut temp_memory = MmapMut::map_anon(self.machine_code.len()).unwrap();
         temp_memory.clone_from_slice(&self.machine_code); // Clone the machine code into it
 
-        // TODO: in this section, the memory can still be modified, but it already has is final addresses.
-        // We can set and get the final jump addresses here.
+        // Record the memory address of each bracket jump instruction
+        let mut jump_addresses: HashMap<usize, *const u8> = HashMap::new();
+        for (start_index, end_index) in forward_jumps.iter() {
+            // Add the forward jump address
+            jump_addresses.insert(*start_index, unsafe {
+                temp_memory.as_ptr().add(*start_index)
+            });
+            // Add the backward jump address
+            jump_addresses.insert(*end_index, unsafe { temp_memory.as_ptr().add(*end_index) });
+        }
+
+        // TODO: rewrite the placeholders with the correct ones
 
         // Make the memory map executable
         self.executable_memory = temp_memory.make_exec().unwrap();
