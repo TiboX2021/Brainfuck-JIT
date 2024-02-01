@@ -29,7 +29,13 @@ impl Compiler {
         self.machine_code
             .extend_from_slice(&(memory_adress as u64).to_le_bytes());
 
-        // TODO: compile the whole thing
+        // Compile the actual instructions
+        for instruction in source {
+            // Add each instruction's corresponding byte slice to the machine code
+            self.machine_code.extend_from_slice(instruction.into());
+        }
+
+        // NOTE: ensuite, il faudra utiliser une enum wrapper pour modifier le vecteur plusieurs fois, et produire un code théorique performant, avant de le compiler
 
         // Last: append the RET instruction
         self.machine_code.push(0xc3);
