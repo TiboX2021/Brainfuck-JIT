@@ -77,13 +77,33 @@ impl From<&ExtendedInstruction> for Vec<u8> {
                 0x41, 0x80, 0x6d, 0x00, *count, // sub byte ptr [r13], count
             ],
             ExtendedInstruction::JumpLeft(offset) => {
-                let mut bytes = vec![0x49, 0x81, 0xed];
-                bytes.extend(&offset.to_be_bytes());
+                let mut bytes = Vec::new();
+
+                if *offset <= 0xff {
+                    // sub with 1 byte format
+                    bytes.extend_from_slice(&[0x49, 0x83, 0xed]);
+                    bytes.push(*offset as u8);
+                } else {
+                    // sub with 4 bytes format
+                    bytes.extend_from_slice(&[0x49, 0x81, 0xed]);
+                    bytes.extend(&offset.to_be_bytes());
+                }
+
                 bytes
             } // sub r13, offset
             ExtendedInstruction::JumpRight(offset) => {
-                let mut bytes = vec![0x49, 0x81, 0xc5];
-                bytes.extend(&offset.to_be_bytes());
+                let mut bytes = Vec::new();
+
+                if *offset <= 0xff {
+                    // add with 1 byte format
+                    bytes.extend_from_slice(&[0x49, 0x83, 0xC5]);
+                    bytes.push(*offset as u8);
+                } else {
+                    // add with 4 bytes format
+                    bytes.extend_from_slice(&[0x49, 0x81, 0xC5]);
+                    bytes.extend(&offset.to_be_bytes());
+                }
+
                 bytes
             } // add r13, offset
         }

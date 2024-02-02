@@ -22,7 +22,6 @@ pub fn optimize_instruction_repetitions(
 
     for instruction in instructions {
         // Check if we changed instructions
-        // en gros, sont compatibles : sub / add, move rl.
         match (instruction, current_instruction) {
             // Update the instruction count for Increment / Decrement instructions
             (
@@ -58,11 +57,16 @@ pub fn optimize_instruction_repetitions(
                     instruction_count,
                 );
 
-                // Reset instruction count and the current instruction
-                current_instruction = Some(*instruction);
-                instruction_count = 1;
+                // Reset instruction count with the correct count depending on the conventions
+                match instruction {
+                    ExtendedInstruction::Regular(Instruction::Decrement)
+                    | ExtendedInstruction::Regular(Instruction::MoveLeft) => instruction_count = -1,
+                    _ => instruction_count = 1,
+                }
             }
         }
+        // Update current instruction
+        current_instruction = Some(*instruction);
     }
 
     // Flush the buffer for the last instruction
@@ -89,7 +93,7 @@ fn push_optimized_repeat_instruction(
             Some(ExtendedInstruction::Regular(Instruction::Increment))
             | Some(ExtendedInstruction::Regular(Instruction::Decrement)),
             instruction_count,
-        ) if instruction_count < 1 => {
+        ) if instruction_count < -1 => {
             buffer.push(ExtendedInstruction::Sub(-instruction_count as u8));
         }
         (
@@ -97,14 +101,14 @@ fn push_optimized_repeat_instruction(
             | Some(ExtendedInstruction::Regular(Instruction::MoveLeft)),
             instruction_count,
         ) if instruction_count > 1 => {
-            buffer.push(ExtendedInstruction::JumpRight(instruction_count as u64));
+            buffer.push(ExtendedInstruction::JumpRight(instruction_count as u32));
         }
         (
             Some(ExtendedInstruction::Regular(Instruction::MoveRight))
             | Some(ExtendedInstruction::Regular(Instruction::MoveLeft)),
             instruction_count,
-        ) if instruction_count < 1 => {
-            buffer.push(ExtendedInstruction::JumpLeft(-instruction_count as u64));
+        ) if instruction_count < -1 => {
+            buffer.push(ExtendedInstruction::JumpLeft(-instruction_count as u32));
         }
         _ => {
             // By default : we just add the current instruction to the output "as is"

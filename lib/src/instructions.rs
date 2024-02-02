@@ -52,6 +52,6 @@ pub enum ExtendedInstruction {
     // Factorized instructions
     Add(u8),
     Sub(u8),
-    JumpRight(u64),
-    JumpLeft(u64),
+    JumpRight(u32),
+    JumpLeft(u32),
 }
