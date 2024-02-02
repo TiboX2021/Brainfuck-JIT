@@ -78,7 +78,7 @@ impl Compiler {
 
             // Compute the relative signed offset.
             let forward_offset = end_address as i32 - start_address as i32;
-            let backwards_offset = start_address as i32 - end_address as i32;
+            let backwards_offset = -forward_offset;
 
             // Replace the jump addresses placeholders
             // The total jump instruction has 11 bytes. We want to replace the last 4: offset of 8
@@ -100,7 +100,7 @@ impl Compiler {
         let func_ptr = self.executable_memory.as_ptr();
 
         unsafe {
-            let main: fn() = std::mem::transmute(func_ptr);
+            let main: extern "C" fn() = std::mem::transmute(func_ptr);
             main();
         }
     }

@@ -46,8 +46,9 @@ fn main() -> std::io::Result<()> {
     // Print elapsed time if the flag is set
     if args.time {
         // Print the elapsed time in seconds and milliseconds
+        // BUG: trying to format the subsec nanos with {:09} makes the program segfault on release.
         println!(
-            "Elapsed time: {}.{:09} seconds",
+            "Elapsed time: {}.{} seconds",
             elapsed_time.as_secs(),
             elapsed_time.subsec_nanos()
         );
