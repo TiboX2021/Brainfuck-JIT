@@ -1,4 +1,5 @@
 /// Brainfuck instruction symbols
+#[derive(Debug, Clone, Copy)]
 pub enum Instruction {
     MoveRight,
     MoveLeft,
@@ -40,4 +41,17 @@ impl From<Instruction> for char {
             Instruction::JumpBackwards => ']',
         }
     }
+}
+
+/// Extended instructions that are not part of the original brainfuck language,
+/// but that will be generated via code optimization.
+#[derive(Debug, Clone, Copy)]
+pub enum ExtendedInstruction {
+    Regular(Instruction),
+
+    // Factorized instructions
+    Add(u8),
+    Sub(u8),
+    JumpRight(u64),
+    JumpLeft(u64),
 }

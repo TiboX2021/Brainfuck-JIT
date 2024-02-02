@@ -2,7 +2,10 @@
 
 use std::collections::HashMap;
 
-use crate::instructions::Instruction;
+use crate::{
+    instructions::{ExtendedInstruction, Instruction},
+    optimizer::instructions_to_extended,
+};
 use memmap2::{Mmap, MmapMut};
 
 pub struct Compiler {
@@ -35,18 +38,21 @@ impl Compiler {
         self.machine_code
             .extend_from_slice(&(memory_adress as u64).to_le_bytes());
 
-        // TODO: here, do the optimization round.
+        let instructions = instructions_to_extended(source);
+        // TODO : call other optimization functions
 
         // Prepare [ to ] and ] to [ index hashmaps
         let mut forward_jumps: HashMap<usize, usize> = HashMap::new();
         let mut orphan_forwards: Vec<usize> = Vec::new();
 
         // Compile the actual instructions
-        for instruction in source.iter() {
+        for instruction in instructions.iter() {
             // Record the jump instruction indexes in the machine_code array before insertion
             match instruction {
-                Instruction::JumpForward => orphan_forwards.push(self.machine_code.len()), // It is actually the next byte that marks the jump address
-                Instruction::JumpBackwards => {
+                ExtendedInstruction::Regular(Instruction::JumpForward) => {
+                    orphan_forwards.push(self.machine_code.len())
+                } // It is actually the next byte that marks the jump address
+                ExtendedInstruction::Regular(Instruction::JumpBackwards) => {
                     let forward_index = orphan_forwards.pop().expect("Unmatched opening bracket");
                     forward_jumps.insert(forward_index, self.machine_code.len());
                 }
@@ -54,7 +60,8 @@ impl Compiler {
             }
 
             // Add each instruction's corresponding byte slice to the machine code
-            self.machine_code.extend_from_slice(instruction.into());
+            let vec: Vec<u8> = instruction.into();
+            self.machine_code.extend(vec);
         }
 
         assert!(
