@@ -35,18 +35,20 @@ impl Compiler {
         self.machine_code
             .extend_from_slice(&(memory_adress as u64).to_le_bytes());
 
+        // TODO: here, do the optimization round.
+
         // Prepare [ to ] and ] to [ index hashmaps
         let mut forward_jumps: HashMap<usize, usize> = HashMap::new();
         let mut orphan_forwards: Vec<usize> = Vec::new();
 
         // Compile the actual instructions
-        for (index, instruction) in source.iter().enumerate() {
+        for instruction in source.iter() {
             // Record the jump instruction indexes in the machine_code array before insertion
             match instruction {
-                Instruction::JumpForward => orphan_forwards.push(index + 1), // It is actually the next byte that marks the jump address
+                Instruction::JumpForward => orphan_forwards.push(self.machine_code.len()), // It is actually the next byte that marks the jump address
                 Instruction::JumpBackwards => {
                     let forward_index = orphan_forwards.pop().expect("Unmatched opening bracket");
-                    forward_jumps.insert(forward_index, index + 1);
+                    forward_jumps.insert(forward_index, self.machine_code.len());
                 }
                 _ => {}
             }
@@ -69,17 +71,22 @@ impl Compiler {
         temp_memory.clone_from_slice(&self.machine_code); // Clone the machine code into it
 
         // Record the memory address of each bracket jump instruction
-        let mut jump_addresses: HashMap<usize, *const u8> = HashMap::new();
         for (start_index, end_index) in forward_jumps.iter() {
-            // Add the forward jump address
-            jump_addresses.insert(*start_index, unsafe {
-                temp_memory.as_ptr().add(*start_index)
-            });
-            // Add the backward jump address
-            jump_addresses.insert(*end_index, unsafe { temp_memory.as_ptr().add(*end_index) });
-        }
+            // Compute the memory addresses of the jump instructions
+            let start_address = unsafe { temp_memory.as_ptr().add(*start_index) };
+            let end_address = unsafe { temp_memory.as_ptr().add(*end_index) };
 
-        // TODO: rewrite the placeholders with the correct ones
+            // Compute the relative signed offset.
+            let forward_offset = end_address as i32 - start_address as i32;
+            let backwards_offset = start_address as i32 - end_address as i32;
+
+            // Replace the jump addresses placeholders
+            // The total jump instruction has 11 bytes. We want to replace the last 4: offset of 8
+            temp_memory[start_index + 8..start_index + 12]
+                .copy_from_slice(forward_offset.to_le_bytes().as_ref());
+            temp_memory[end_index + 8..end_index + 12]
+                .copy_from_slice(backwards_offset.to_le_bytes().as_ref());
+        }
 
         // Make the memory map executable
         self.executable_memory = temp_memory.make_exec().unwrap();
