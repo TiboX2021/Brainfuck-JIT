@@ -106,6 +106,7 @@ impl From<&ExtendedInstruction> for Vec<u8> {
 
                 bytes
             } // add r13, offset
+            ExtendedInstruction::SetZero => vec![0x41, 0xC6, 0x45, 0x00, 0x00], // mov byte ptr [r13], 0
         }
     }
 }

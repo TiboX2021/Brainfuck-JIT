@@ -75,6 +75,67 @@ pub fn optimize_instruction_repetitions(
     output
 }
 
+// Optimization patterns, listed in DECREASING PRIORITY ORDER
+static PATTERNS: &[(&[ExtendedInstruction], ExtendedInstruction)] = &[
+    // Set zero pattern: [-]
+    (
+        &[
+            ExtendedInstruction::Regular(Instruction::JumpForward),
+            ExtendedInstruction::Regular(Instruction::Decrement),
+            ExtendedInstruction::Regular(Instruction::JumpBackwards),
+        ],
+        ExtendedInstruction::SetZero,
+    ),
+    // TODO : put other patterns here
+];
+
+/// Optimize the given instructions by recognizing patterns and replacing them with more efficient instructions
+/// Example: `[-]` will be replaced by SetZero
+pub fn optimize_pattern_based(instructions: &[ExtendedInstruction]) -> Vec<ExtendedInstruction> {
+    let mut output = instructions.to_vec();
+    let mut optimized_output = Vec::new();
+
+    // For each optimization pattern, do a single pass through the instructions and replace them
+    for (pattern, replacement) in PATTERNS {
+        let mut matching_size = 0;
+
+        // While there is still some output to process
+        for (index, instruction) in output.iter().enumerate() {
+            // MATCHING DETECTION
+            // Check if the current instruction matches the pattern
+            if *instruction == pattern[matching_size] {
+                matching_size += 1;
+            } else {
+                // If the pattern doesn't match, we reset the matching size and move to the next instruction
+                optimized_output.extend_from_slice(&output[index - matching_size..index + 1]);
+                matching_size = 0;
+            }
+
+            // MATCHING PROCESSING
+            // If we matched the whole pattern, we replace it with the optimized instruction
+            if matching_size == pattern.len() {
+                optimized_output.push(*replacement);
+
+                // Reset the counters
+                matching_size = 0;
+            }
+        }
+
+        // If the matching size is not zero, we need to flush the buffer
+        optimized_output.extend_from_slice(&output[output.len() - matching_size..]);
+
+        // Swap the buffers
+        output = optimized_output;
+        optimized_output = Vec::new();
+    }
+
+    output
+}
+
+// ********************************************************************************************* //
+//                                           HELPER FUNCTIONS                                    //
+// ********************************************************************************************* //
+
 /// Helper: pushes the optimized repeated instruction corresponding to the input and count inside the given buffer
 fn push_optimized_repeat_instruction(
     buffer: &mut Vec<ExtendedInstruction>,

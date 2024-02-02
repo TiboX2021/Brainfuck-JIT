@@ -4,7 +4,9 @@ use std::collections::HashMap;
 
 use crate::{
     instructions::{ExtendedInstruction, Instruction},
-    optimizer::{instructions_to_extended, optimize_instruction_repetitions},
+    optimizer::{
+        instructions_to_extended, optimize_instruction_repetitions, optimize_pattern_based,
+    },
 };
 use memmap2::{Mmap, MmapMut};
 
@@ -40,6 +42,7 @@ impl Compiler {
 
         let instructions = instructions_to_extended(source);
         let instructions = optimize_instruction_repetitions(&instructions);
+        let instructions = optimize_pattern_based(&instructions);
 
         // Prepare [ to ] and ] to [ index hashmaps
         let mut forward_jumps: HashMap<usize, usize> = HashMap::new();
