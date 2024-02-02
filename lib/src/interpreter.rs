@@ -2,7 +2,12 @@
 
 use std::collections::HashMap;
 
-use crate::instructions::Instruction;
+use crate::{
+    instructions::{ExtendedInstruction, Instruction},
+    optimizer::{
+        instructions_to_extended, optimize_instruction_repetitions, optimize_pattern_based,
+    },
+};
 
 /// An implementation of a Brainfuck interpreter
 pub struct Interpreter {
@@ -31,13 +36,19 @@ impl Interpreter {
 
     /// Execute some brainfuck code from a tokenized program
     pub fn execute(&mut self, program: &[Instruction]) {
+        let instructions = instructions_to_extended(program);
+        let instructions = optimize_instruction_repetitions(&instructions);
+        let instructions = optimize_pattern_based(&instructions);
+
         // Do a single forward pass over the whole code in order to match all loop brackets in the hash maps
         let mut bracket_indices: Vec<usize> = Vec::new(); // Store the encountered forward brackets on a stack
 
-        for (index, instr) in program.iter().enumerate() {
+        for (index, instr) in instructions.iter().enumerate() {
             match instr {
-                Instruction::JumpForward => bracket_indices.push(index),
-                Instruction::JumpBackwards => {
+                ExtendedInstruction::Regular(Instruction::JumpForward) => {
+                    bracket_indices.push(index)
+                }
+                ExtendedInstruction::Regular(Instruction::JumpBackwards) => {
                     let forward_index = bracket_indices.pop().expect("Unmatched closing bracket");
                     self.forward_jumps.insert(forward_index, index);
                     self.backward_jumps.insert(index, forward_index);
@@ -53,28 +64,39 @@ impl Interpreter {
 
         // Now, we can execute the program until the instructions run out
         let mut instruction_pointer: usize = 0;
-        while instruction_pointer < program.len() {
-            match program[instruction_pointer] {
-                Instruction::MoveRight => self.stack_pointer += 1,
-                Instruction::MoveLeft => self.stack_pointer -= 1,
-                Instruction::Increment => {
+        while instruction_pointer < instructions.len() {
+            match instructions[instruction_pointer] {
+                ExtendedInstruction::Regular(Instruction::MoveRight) => self.stack_pointer += 1,
+                ExtendedInstruction::Regular(Instruction::MoveLeft) => self.stack_pointer -= 1,
+                ExtendedInstruction::Regular(Instruction::Increment) => {
                     self.stack[self.stack_pointer] = self.stack[self.stack_pointer].wrapping_add(1);
                 }
-                Instruction::Decrement => {
+                ExtendedInstruction::Regular(Instruction::Decrement) => {
                     self.stack[self.stack_pointer] = self.stack[self.stack_pointer].wrapping_sub(1)
                 }
 
-                Instruction::Output => print!("{}", self.stack[self.stack_pointer] as char),
-                Instruction::JumpForward => {
+                ExtendedInstruction::Regular(Instruction::Output) => {
+                    print!("{}", self.stack[self.stack_pointer] as char)
+                }
+                ExtendedInstruction::Regular(Instruction::JumpForward) => {
                     if self.stack[self.stack_pointer] == 0 {
                         instruction_pointer = self.forward_jumps[&instruction_pointer];
                     }
                 }
-                Instruction::JumpBackwards => {
+                ExtendedInstruction::Regular(Instruction::JumpBackwards) => {
                     if self.stack[self.stack_pointer] != 0 {
                         instruction_pointer = self.backward_jumps[&instruction_pointer];
                     }
                 }
+                ExtendedInstruction::Add(n) => {
+                    self.stack[self.stack_pointer] = self.stack[self.stack_pointer].wrapping_add(n)
+                }
+                ExtendedInstruction::Sub(n) => {
+                    self.stack[self.stack_pointer] = self.stack[self.stack_pointer].wrapping_sub(n)
+                }
+                ExtendedInstruction::JumpLeft(n) => self.stack_pointer -= n as usize,
+                ExtendedInstruction::JumpRight(n) => self.stack_pointer += n as usize,
+                ExtendedInstruction::SetZero => self.stack[self.stack_pointer] = 0,
             }
 
             // Go to the next instruction
