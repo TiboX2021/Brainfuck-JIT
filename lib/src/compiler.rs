@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use crate::{
     instructions::{ExtendedInstruction, Instruction},
-    optimizer::instructions_to_extended,
+    optimizer::{instructions_to_extended, optimize_instruction_repetitions},
 };
 use memmap2::{Mmap, MmapMut};
 
@@ -39,7 +39,7 @@ impl Compiler {
             .extend_from_slice(&(memory_adress as u64).to_le_bytes());
 
         let instructions = instructions_to_extended(source);
-        // TODO : call other optimization functions
+        let instructions = optimize_instruction_repetitions(&instructions);
 
         // Prepare [ to ] and ] to [ index hashmaps
         let mut forward_jumps: HashMap<usize, usize> = HashMap::new();

@@ -1,0 +1,116 @@
+//! Code optimization during compilation
+
+use crate::instructions::{ExtendedInstruction, Instruction};
+
+/// Convert regular brainfuck instructions to extended instructions for further processing
+pub fn instructions_to_extended(instructions: &[Instruction]) -> Vec<ExtendedInstruction> {
+    instructions
+        .iter()
+        .map(|i| ExtendedInstruction::Regular(*i))
+        .collect()
+}
+
+/// Optimize instruction repetitions by aggregating them using extended instructions
+pub fn optimize_instruction_repetitions(
+    instructions: &[ExtendedInstruction],
+) -> Vec<ExtendedInstruction> {
+    let mut output = Vec::new();
+
+    // Flags and counters to identify repeated instructions
+    let mut current_instruction: Option<ExtendedInstruction> = None;
+    let mut instruction_count: i32 = 0; // Count consecutive instructions to be grouped (arithmetic !)
+
+    for instruction in instructions {
+        // Check if we changed instructions
+        // en gros, sont compatibles : sub / add, move rl.
+        match (instruction, current_instruction) {
+            // Update the instruction count for Increment / Decrement instructions
+            (
+                ExtendedInstruction::Regular(Instruction::Increment),
+                Some(ExtendedInstruction::Regular(Instruction::Increment))
+                | Some(ExtendedInstruction::Regular(Instruction::Decrement)),
+            ) => instruction_count += 1, // Increment = +1
+
+            (
+                ExtendedInstruction::Regular(Instruction::Decrement),
+                Some(ExtendedInstruction::Regular(Instruction::Increment))
+                | Some(ExtendedInstruction::Regular(Instruction::Decrement)),
+            ) => instruction_count -= 1, // Decrement = -1
+
+            // Update the instruction count for MoveRight / MoveLeft instructions
+            (
+                ExtendedInstruction::Regular(Instruction::MoveRight),
+                Some(ExtendedInstruction::Regular(Instruction::MoveRight))
+                | Some(ExtendedInstruction::Regular(Instruction::MoveLeft)),
+            ) => instruction_count += 1, // Move Right = +1
+
+            (
+                ExtendedInstruction::Regular(Instruction::MoveLeft),
+                Some(ExtendedInstruction::Regular(Instruction::MoveRight))
+                | Some(ExtendedInstruction::Regular(Instruction::MoveLeft)),
+            ) => instruction_count -= 1, // Move Left = -1
+
+            _ => {
+                // If we changed instructions, we need to process the previous instruction
+                push_optimized_repeat_instruction(
+                    &mut output,
+                    &current_instruction,
+                    instruction_count,
+                );
+
+                // Reset instruction count and the current instruction
+                current_instruction = Some(*instruction);
+                instruction_count = 1;
+            }
+        }
+    }
+
+    // Flush the buffer for the last instruction
+    push_optimized_repeat_instruction(&mut output, &current_instruction, instruction_count);
+
+    output
+}
+
+/// Helper: pushes the optimized repeated instruction corresponding to the input and count inside the given buffer
+fn push_optimized_repeat_instruction(
+    buffer: &mut Vec<ExtendedInstruction>,
+    instruction: &Option<ExtendedInstruction>,
+    instruction_count: i32,
+) {
+    match (instruction, instruction_count) {
+        (
+            Some(ExtendedInstruction::Regular(Instruction::Increment))
+            | Some(ExtendedInstruction::Regular(Instruction::Decrement)),
+            instruction_count,
+        ) if instruction_count > 1 => {
+            buffer.push(ExtendedInstruction::Add(instruction_count as u8));
+        }
+        (
+            Some(ExtendedInstruction::Regular(Instruction::Increment))
+            | Some(ExtendedInstruction::Regular(Instruction::Decrement)),
+            instruction_count,
+        ) if instruction_count < 1 => {
+            buffer.push(ExtendedInstruction::Sub(-instruction_count as u8));
+        }
+        (
+            Some(ExtendedInstruction::Regular(Instruction::MoveRight))
+            | Some(ExtendedInstruction::Regular(Instruction::MoveLeft)),
+            instruction_count,
+        ) if instruction_count > 1 => {
+            buffer.push(ExtendedInstruction::JumpRight(instruction_count as u64));
+        }
+        (
+            Some(ExtendedInstruction::Regular(Instruction::MoveRight))
+            | Some(ExtendedInstruction::Regular(Instruction::MoveLeft)),
+            instruction_count,
+        ) if instruction_count < 1 => {
+            buffer.push(ExtendedInstruction::JumpLeft(-instruction_count as u64));
+        }
+        _ => {
+            // By default : we just add the current instruction to the output "as is"
+            if let Some(instruction) = instruction {
+                buffer.push(*instruction);
+            }
+        }
+    }
+}
